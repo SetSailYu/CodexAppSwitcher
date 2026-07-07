@@ -1,0 +1,125 @@
+# CodexAppSwitcher 关键决策
+
+最近更新：2026-07-06 16:47 (Asia/Shanghai)
+
+## 2026-06-19 22:34 (Asia/Shanghai) - 技术栈选择
+
+背景：需要 Win11 本机工具管理 Codex App 进程、登录态快照和用量查询。
+
+候选方案：WPF、WinUI 3、Electron、Tauri。
+
+最终选择：C# + WPF + .NET 8 + WebView2。
+
+原因：WPF 对 Windows 本机能力集成稳定，WebView2 适合独立网页 profile 与 analytics 页面。
+
+影响范围：项目结构、UI 实现、用量查询和部署策略。
+
+## 2026-07-01 10:37 (Asia/Shanghai) - 主登录态目录固定为 AppData Roaming
+
+背景：只读查看 Codex 进程命令行发现 Electron 使用 `--user-data-dir=%APPDATA%\Codex\web\Codex`。
+
+最终选择：固定 `%APPDATA%\Codex` 为 Codex App Roaming 附加状态目录，不再把 MSIX LocalCache 当主目录。
+
+原因：继续把 MSIX LocalCache 当主目录会导致快照校验通过但账号 UI 不变。
+
+影响范围：路径解析、接管流程和手动验证方向。
+
+## 2026-07-02 18:25 (Asia/Shanghai) - 切换主模型改为 auth profile
+
+背景：继续围绕 Roaming 文件数判断接管和切换成功会反复误判；参考 `xjoker/codex-switch` 后确认 auth profile 是更稳定的切换单元。
+
+最终选择：账号快照保存 `auth.json`，切换时把目标账号 `auth.json` 写入 live auth。
+
+原因：Codex App 的账号身份最终由 auth 决定；Roaming/MSIX 附加状态曾造成个人资料加载异常。
+
+影响范围：账号接管、切换服务、测试断言和手动验证文档。
+
+## 2026-07-03 11:41 (Asia/Shanghai) - 取消切换模式配置
+
+背景：用户明确要求取消 Auth-only/Auth+Roaming 这类模式配置，直接执行真实操作。
+
+最终选择：移除 UI 和服务层模式分支，当前只保留单一路径。
+
+原因：多模式增加误判和调试噪音，Roaming/MSIX 分支已被证明会破坏个人资料加载。
+
+影响范围：主窗口确认文案、切换服务 API、测试断言和手动验证指引。
+
+## 2026-07-03 15:27 (Asia/Shanghai) - 当前手动测试边界
+
+背景：用户要求先不做 Token 模块，写 auth 前关闭 Codex App，并继续保留工具启动/停止 Codex App 能力。
+
+最终选择：切换入口先关闭全部 Codex App，再写目标账号 auth；不做 Token、rollback、写后校验、Roaming/MSIX 替换。
+
+原因：当前要验证最小真实链路，减少保护层和历史分支对结果判断的干扰。
+
+影响范围：`MainWindowViewModel` 切换流程、`AccountSwitchService` 职责、测试项目和手动验证文档。
+
+## 2026-07-03 15:37 (Asia/Shanghai) - 添加账号与接管解耦
+
+背景：添加 ChatGPT Web 账号后自动采集当前 Codex App 登录态，可能把当前 App 账号错误接管到刚添加的 Web 账号。
+
+最终选择：添加/重复添加只保存 WebView2 登录态和账号元数据；Codex App 快照只能通过账号行 `接管/完成` 或当前账号 `更新` 采集。
+
+原因：Web 账号识别和 App 登录态接管是两个不同事实，自动合并会造成误绑定和后续切换误判。
+
+影响范围：添加账号流程、重复账号覆盖文案、手动验证步骤和账号状态解释。
+
+## 2026-07-03 16:07 (Asia/Shanghai) - 用户可见状态回到 auth 主线
+
+背景：安全检查和最近操作里仍出现 MSIX/package-state 或 Roaming/MSIX 混合表述，容易把手动测试重新带回旧排查方向。
+
+最终选择：主界面安全检查只展示 live auth、auth 目录、Roaming 附加目录和 Codex App 状态；切换诊断只说明未替换 Roaming 附加目录。
+
+原因：当前验收目标是验证 Codex App 关闭后重新读取 live auth，不再测试 MSIX/package-state。
+
+影响范围：右侧安全检查、最近操作日志、手动验证文档和后续问题定位方向。
+
+## 2026-07-03 16:19 (Asia/Shanghai) - 删除提权与 package-state 产品能力
+
+背景：用户已确认继续清理历史分支；提权 Helper 和 package-state 探测不再服务当前 auth 主线。
+
+最终选择：删除 `CodexAppSwitcher.Elevated` 项目、主项目提权 Helper 服务、package-state 路径配置和路径发现/检测逻辑。
+
+原因：保留这些代码会让后续维护和手测重新回到已废弃方向。
+
+影响范围：解决方案结构、路径解析器、测试模拟方式和后续排查边界。
+
+## 2026-07-03 16:27 (Asia/Shanghai) - 删除回滚入口
+
+背景：rollback 已不创建、不执行，继续展示“回滚禁用”卡片会让用户误以为仍是一个功能模块。
+
+最终选择：删除右侧回滚卡片、ViewModel 回滚命令和切换服务的禁用回滚方法。
+
+原因：当前产品链路只验证 auth 快照写回；无效入口会增加手动测试噪音。
+
+影响范围：右侧栏 UI、主窗口 ViewModel、切换服务、手动验证文档。
+
+## 2026-07-03 16:35 (Asia/Shanghai) - 删除切换保护开关与假导航
+
+背景：当前版本已经固定为手动测试真实切换，继续保留真实切换开关、宿主保护模式和无命令导航按钮会制造旧设计噪音。
+
+最终选择：配置只保留用量刷新开关；关闭 Codex App 固定真实执行；左侧栏改为只读工作台状态项。
+
+原因：账号切换链路需要单一路径，UI 只能展示当前可用功能。
+
+影响范围：配置模型、appsettings、进程关闭服务、主窗口 ViewModel、左侧栏 UI、手动验证文档。
+
+## 2026-07-06 15:22 (Asia/Shanghai) - 切换完成后同步工具状态
+
+背景：真实切换已写入 live `auth.json`，但工具本地 `当前使用` 标记可能仍停留在切换前账号，干扰手动验证判断。
+
+最终选择：切换服务成功返回后，主窗口同步本地账号元数据并把目标账号标记为当前账号。
+
+原因：工具当前状态应表达“最后一次由工具成功写入的目标账号”，不能继续显示旧账号。
+
+影响范围：主窗口 ViewModel、账号列表当前标记、最近操作文案和手动验证指引。
+
+## 2026-07-06 16:47 (Asia/Shanghai) - 切换完成后自动启动 Codex App
+
+背景：用户确认接管和切换已可用，剩余问题是切换成功后 Codex App 没有自动重启读取新账号。
+
+最终选择：账号切换成功并同步当前账号标记后，立即调用现有 Codex App 启动服务。
+
+原因：切换链路本身已经要求关闭 Codex App 写 live auth；自动启动能形成完整闭环，减少手动步骤。
+
+影响范围：主窗口 ViewModel、切换确认文案、操作日志和手动验证指引。
