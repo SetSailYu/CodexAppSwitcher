@@ -1,0 +1,288 @@
+<Window x:Class="CodexAppSwitcher.UsageWidgetWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:CodexAppSwitcher.Controls"
+        Title="额度挂件"
+        Width="100"
+        Height="100"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        Topmost="True"
+        ShowInTaskbar="False"
+        WindowStartupLocation="Manual"
+        Loaded="Window_OnLoaded"
+        MouseLeftButtonDown="Window_OnMouseLeftButtonDown">
+    <Window.Resources>
+        <Style x:Key="WidgetIconButtonStyle"
+               TargetType="{x:Type Button}">
+            <Setter Property="Width" Value="18" />
+            <Setter Property="Height" Value="18" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="#E2172638" />
+            <Setter Property="BorderBrush" Value="#33475E" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <Border x:Name="Root"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="9">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#F0223348" />
+                                <Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="#F0142234" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.55" />
+                                <Setter Property="Cursor" Value="Arrow" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="WidgetUsageTextStyle"
+               TargetType="{x:Type TextBlock}">
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding CurrentAccountUsage.IsFiveHourUsageWarning}" Value="True">
+                    <Setter Property="Foreground" Value="{StaticResource WarningBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding CurrentAccountUsage.IsFiveHourUsageCritical}" Value="True">
+                    <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ToolTip>
+            <ToolTip>
+                <StackPanel MinWidth="190">
+                    <TextBlock Text="{Binding CurrentAccountName}"
+                               FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding CurrentAccountLoginTimeText}"
+                               Foreground="{StaticResource TextMutedBrush}"
+                               Margin="0,4,0,8" />
+                    <Grid Margin="0,0,0,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="76" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="5 小时额度"
+                                   Foreground="{StaticResource TextMutedBrush}" />
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding CurrentAccountUsage.FiveHourText, TargetNullValue=--}" />
+                    </Grid>
+                    <Grid Margin="0,0,0,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="76" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="5 小时重置"
+                                   Foreground="{StaticResource TextMutedBrush}" />
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding CurrentAccountUsage.FiveHourResetText, TargetNullValue=等待检测}" />
+                    </Grid>
+                    <Grid Margin="0,0,0,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="76" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="每周额度"
+                                   Foreground="{StaticResource TextMutedBrush}" />
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding CurrentAccountUsage.WeeklyText, TargetNullValue=--}" />
+                    </Grid>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="76" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="每周重置"
+                                   Foreground="{StaticResource TextMutedBrush}" />
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding CurrentAccountUsage.WeeklyResetText, TargetNullValue=等待检测}" />
+                    </Grid>
+                </StackPanel>
+            </ToolTip>
+        </Grid.ToolTip>
+
+        <Border Margin="6"
+                CornerRadius="44"
+                BorderBrush="#2A33475E"
+                BorderThickness="1"
+                SnapsToDevicePixels="True">
+            <Border.Background>
+                <RadialGradientBrush Center="0.45,0.32"
+                                     GradientOrigin="0.4,0.24"
+                                     RadiusX="0.88"
+                                     RadiusY="0.88">
+                    <GradientStop Color="#F2152738" Offset="0" />
+                    <GradientStop Color="#F00B1826" Offset="0.62" />
+                    <GradientStop Color="#F008131E" Offset="1" />
+                </RadialGradientBrush>
+            </Border.Background>
+            <Border.Effect>
+                <DropShadowEffect Color="#000000"
+                                  BlurRadius="18"
+                                  ShadowDepth="0"
+                                  Opacity="0.52" />
+            </Border.Effect>
+        </Border>
+
+        <controls:CircularProgressRing Margin="6"
+                                       Value="{Binding CurrentAccountUsage.FiveHourProgressValue, Mode=OneWay, TargetNullValue=0, FallbackValue=0}"
+                                       Maximum="100"
+                                       TrackBrush="#26384A"
+                                       StrokeThickness="2.6">
+            <controls:CircularProgressRing.Style>
+                <Style TargetType="{x:Type controls:CircularProgressRing}">
+                    <Setter Property="ProgressBrush" Value="{StaticResource SuccessBrush}" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding CurrentAccountUsage.IsFiveHourUsageWarning}" Value="True">
+                            <Setter Property="ProgressBrush" Value="{StaticResource WarningBrush}" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding CurrentAccountUsage.IsFiveHourUsageCritical}" Value="True">
+                            <Setter Property="ProgressBrush" Value="{StaticResource DangerBrush}" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </controls:CircularProgressRing.Style>
+        </controls:CircularProgressRing>
+
+        <Ellipse Margin="18"
+                 Stroke="#18223244"
+                 StrokeThickness="1" />
+
+        <Button HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Margin="14,2,0,0"
+                Command="{Binding RefreshUsageCommand}"
+                ToolTip="{Binding RefreshUsageTooltip}">
+            <Button.Style>
+                <Style TargetType="{x:Type Button}"
+                       BasedOn="{StaticResource WidgetIconButtonStyle}">
+                    <Setter Property="IsEnabled" Value="True" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsUsageRefreshing}" Value="True">
+                            <Setter Property="IsEnabled" Value="False" />
+                            <Setter Property="Opacity" Value="0.7" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Button.Style>
+            <Grid Width="10"
+                  Height="10">
+                <Path Data="M 10,2 A 6,6 0 1 0 14,8 M 14,2 L 14,8 L 8,8"
+                      Stretch="Uniform"
+                      Stroke="{StaticResource TextMutedBrush}"
+                      StrokeThickness="1.8"
+                      StrokeStartLineCap="Round"
+                      StrokeEndLineCap="Round"
+                      StrokeLineJoin="Round" />
+                <TextBlock Text="中"
+                           FontSize="9"
+                           FontWeight="SemiBold"
+                           HorizontalAlignment="Center"
+                           VerticalAlignment="Center">
+                    <TextBlock.Style>
+                        <Style TargetType="{x:Type TextBlock}">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsUsageRefreshing}" Value="True">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </Grid>
+        </Button>
+
+        <Button Style="{StaticResource WidgetIconButtonStyle}"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Margin="0,2,14,0"
+                Command="{Binding ToggleUsageWidgetCommand}"
+                ToolTip="隐藏额度挂件">
+            <Path Data="M 4,4 L 12,12 M 12,4 L 4,12"
+                  Width="9"
+                  Height="9"
+                  Stretch="Uniform"
+                  Stroke="{StaticResource TextMutedBrush}"
+                  StrokeThickness="1.9"
+                  StrokeStartLineCap="Round"
+                  StrokeEndLineCap="Round" />
+        </Button>
+
+        <StackPanel Width="66"
+                    VerticalAlignment="Center"
+                    HorizontalAlignment="Center"
+                    Margin="0,10,0,0">
+            <TextBlock Text="5小时"
+                       Foreground="{StaticResource TextMutedBrush}"
+                       FontSize="9"
+                       HorizontalAlignment="Center" />
+            <TextBlock Text="{Binding CurrentAccountUsage.FiveHourText, TargetNullValue=--}"
+                       FontSize="21"
+                       FontWeight="SemiBold"
+                       LineHeight="23"
+                       HorizontalAlignment="Center"
+                       Margin="0,-1,0,0"
+                       Style="{StaticResource WidgetUsageTextStyle}" />
+            <Border Height="18"
+                    MinWidth="52"
+                    Margin="0,4,0,0"
+                    Padding="6,0"
+                    HorizontalAlignment="Center"
+                    Background="#A3142234"
+                    BorderBrush="#304B627A"
+                    BorderThickness="1"
+                    CornerRadius="8">
+                <StackPanel Orientation="Horizontal"
+                            VerticalAlignment="Center">
+                    <TextBlock Text="周"
+                               Foreground="{StaticResource TextMutedBrush}"
+                               FontSize="10"
+                               Margin="0,0,4,0"
+                               VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding CurrentAccountUsage.WeeklyText, TargetNullValue=--}"
+                               FontSize="10"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center">
+                        <TextBlock.Style>
+                            <Style TargetType="{x:Type TextBlock}">
+                                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding CurrentAccountUsage.IsWeeklyUsageWarning}" Value="True">
+                                        <Setter Property="Foreground" Value="{StaticResource WarningBrush}" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding CurrentAccountUsage.IsWeeklyUsageCritical}" Value="True">
+                                        <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </Grid>
+</Window>

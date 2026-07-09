@@ -36,10 +36,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _currentAccountName = "未检测";
     private string _currentAccountStatus = "未检测";
     private string _currentAccountLoginTimeText = "登录时间：等待检测";
+    private AccountRowViewModel? _currentAccountUsage;
+    private UsageWidgetWindow? _usageWidgetWindow;
     private bool _isUsageRefreshing;
     private bool _isCodexAppCapturing;
     private bool _isCodexAppRunning;
     private bool _isAccountSwitching;
+    private bool _isUsageWidgetVisible;
     private string? _capturingAccountId;
     private string? _switchingAccountId;
     private string? _takeoverAccountId;
@@ -64,6 +67,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             pathResolver);
         AddChatGptAccountCommand = new RelayCommand(AddChatGptAccount);
         RefreshUsageCommand = new RelayCommand(() => _ = RefreshUsageAsync());
+        ToggleUsageWidgetCommand = new RelayCommand(ToggleUsageWidget);
         OpenCodexAppCommand = new RelayCommand(() => _ = OpenCodexAppAsync());
         StopCodexAppCommand = new RelayCommand(() => _ = StopCodexAppAsync());
         TakeoverCodexAppCommand = new RelayCommand(parameter => _ = TakeoverCodexAppAsync(parameter));
@@ -91,7 +95,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             Accounts.Add(CreateAccountRow(account, usage));
         }
 
-        BuildSafetyChecks(pathResolver, accounts.Count);
+        UpdateCurrentAccountUsageDisplay();
+        BuildSafetyChecks(pathResolver);
         AddOperationLog("信息", $"程序启动完成，已加载 {accounts.Count} 个账号。");
     }
 
@@ -119,11 +124,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public string AccountListTitle => $"账号列表（{Accounts.Count}）";
 
     /// <summary>
-    /// 左侧账号摘要文本。
-    /// </summary>
-    public string AccountSummaryText => $"账号快照：{Accounts.Count} 个";
-
-    /// <summary>
     /// 是否已有账号。
     /// </summary>
     public bool HasAccounts => Accounts.Count > 0;
@@ -139,11 +139,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public string RefreshUsageTooltip => IsUsageRefreshEnabled
         ? "使用各账号的 WebView2 登录态刷新 Codex analytics 用量。"
         : "真实用量刷新已关闭。开启 EnableUsageRefresh 后重启工具。";
-
-    /// <summary>
-    /// 左侧用量刷新状态文本。
-    /// </summary>
-    public string UsageRefreshStateText => IsUsageRefreshEnabled ? "用量刷新：已启用" : "用量刷新：已关闭";
 
     /// <summary>
     /// 是否正在刷新用量。
@@ -204,6 +199,25 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public string CodexAppRunStateText => IsCodexAppRunning ? "运行中" : "未运行";
 
     /// <summary>
+    /// 额度挂件是否正在显示。
+    /// </summary>
+    public bool IsUsageWidgetVisible
+    {
+        get => _isUsageWidgetVisible;
+        private set
+        {
+            _isUsageWidgetVisible = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(UsageWidgetButtonText));
+        }
+    }
+
+    /// <summary>
+    /// 额度挂件按钮文本。
+    /// </summary>
+    public string UsageWidgetButtonText => IsUsageWidgetVisible ? "隐藏挂件" : "额度挂件";
+
+    /// <summary>
     /// 添加 ChatGPT Web 账号命令。
     /// </summary>
     public ICommand AddChatGptAccountCommand { get; }
@@ -212,6 +226,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     /// 刷新 Codex 用量命令。
     /// </summary>
     public ICommand RefreshUsageCommand { get; }
+
+    /// <summary>
+    /// 显示或隐藏当前账号额度挂件命令。
+    /// </summary>
+    public ICommand ToggleUsageWidgetCommand { get; }
 
     /// <summary>
     /// 启动 Codex App 命令。
@@ -316,6 +335,19 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// 当前账号用量悬浮展示数据。
+    /// </summary>
+    public AccountRowViewModel? CurrentAccountUsage
+    {
+        get => _currentAccountUsage;
+        private set
+        {
+            _currentAccountUsage = value;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
     /// Switcher 数据目录展示文本。
     /// </summary>
     public string DataDirectoryText => $"数据目录：{_pathResolver.SwitcherDataRoot}";
@@ -390,6 +422,24 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             ? "既有账号 Web 登录态已更新；Codex App 快照未变更。"
             : "账号已添加；请通过账号行接管来采集 Codex App 快照。";
         AddOperationLog("成功", LastOperation);
+    }
+
+    private void ToggleUsageWidget()
+    {
+        if (IsUsageWidgetVisible)
+        {
+            _usageWidgetWindow?.Hide();
+            IsUsageWidgetVisible = false;
+            return;
+        }
+
+        _usageWidgetWindow ??= new UsageWidgetWindow
+        {
+            DataContext = this
+        };
+        _usageWidgetWindow.Show();
+        _usageWidgetWindow.Activate();
+        IsUsageWidgetVisible = true;
     }
 
     private static AccountIdentitySnapshot ShowAddAccountWindow(string profilePath)
@@ -487,6 +537,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
 
         NotifyAccountListChanged();
+        UpdateCurrentAccountUsageDisplay();
     }
 
     private static string BuildUsageRefreshSummary(int totalCount, int successCount, IReadOnlyCollection<string> failedAccountNames)
@@ -573,7 +624,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             IsAccountSwitching = false;
             RebuildAccountRows(_metadataStore.LoadAll());
             RefreshCodexAppStatus();
-            RefreshSafetyChecks(_metadataStore.LoadAll().Count);
+            RefreshSafetyChecks();
         }
     }
 
@@ -583,7 +634,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         LastOperation = result.Message;
         AddOperationLog(result.IsSuccess ? "成功" : "警告", $"启动 Codex App：{result.Message}");
         RefreshCodexAppStatus();
-        RefreshSafetyChecks(_metadataStore.LoadAll().Count);
+        RefreshSafetyChecks();
     }
 
     private async Task StopCodexAppAsync()
@@ -592,7 +643,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         LastOperation = result.Message;
         AddOperationLog(result.IsSuccess ? "成功" : "警告", $"停止 Codex App：{result.Message}");
         RefreshCodexAppStatus();
-        RefreshSafetyChecks(_metadataStore.LoadAll().Count);
+        RefreshSafetyChecks();
     }
 
     private async Task TakeoverCodexAppAsync(object? parameter)
@@ -692,7 +743,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             IsCodexAppCapturing = false;
             RebuildAccountRows(_metadataStore.LoadAll());
             RefreshCodexAppStatus();
-            RefreshSafetyChecks(_metadataStore.LoadAll().Count);
+            RefreshSafetyChecks();
         }
     }
 
@@ -916,7 +967,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         LastOperation = result.Message;
         AddOperationLog(result.IsSuccess ? "成功" : "警告", $"删除账号 {row.DisplayName}：{result.Message}");
         RebuildAccountRows(_metadataStore.LoadAll());
-        RefreshSafetyChecks(_metadataStore.LoadAll().Count);
+        RefreshSafetyChecks();
     }
 
     private void OpenDirectory(string path, string successMessage, bool createIfMissing)
@@ -966,8 +1017,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private void NotifyAccountListChanged()
     {
         OnPropertyChanged(nameof(AccountListTitle));
-        OnPropertyChanged(nameof(AccountSummaryText));
         OnPropertyChanged(nameof(HasAccounts));
+    }
+
+    private void UpdateCurrentAccountUsageDisplay()
+    {
+        CurrentAccountUsage = Accounts.FirstOrDefault(account => account.IsCurrent)
+            ?? Accounts.FirstOrDefault(account => account.AccountId == _currentAccountId);
     }
 
     private void RefreshCodexAppStatus()
@@ -976,21 +1032,19 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         CodexAppStatus = _processService.GetProcessSummary();
     }
 
-    private void BuildSafetyChecks(CodexPathResolver pathResolver, int accountCount)
+    private void BuildSafetyChecks(CodexPathResolver pathResolver)
     {
         var authDirectory = Path.GetDirectoryName(pathResolver.AuthJsonPath);
         SafetyChecks.Add(new SafetyCheckRow("配置已加载", true));
-        SafetyChecks.Add(new SafetyCheckRow($"账号快照：{accountCount} 个", accountCount > 0));
-        SafetyChecks.Add(new SafetyCheckRow($"Codex App：{(_processService.IsCodexWindowOpen() ? "窗口运行中" : _processService.IsCodexRunning() ? "仅后台进程" : "未运行")}", true));
         SafetyChecks.Add(new SafetyCheckRow($"live auth：{(File.Exists(pathResolver.AuthJsonPath) ? "存在" : "未找到")}", File.Exists(pathResolver.AuthJsonPath)));
         SafetyChecks.Add(new SafetyCheckRow($"auth 目录：{authDirectory ?? "未解析"}", authDirectory is not null && Directory.Exists(authDirectory)));
         SafetyChecks.Add(new SafetyCheckRow($"Roaming 附加目录：{(Directory.Exists(pathResolver.RoamingCodexPath) ? "存在" : "未找到")}", Directory.Exists(pathResolver.RoamingCodexPath)));
     }
 
-    private void RefreshSafetyChecks(int accountCount)
+    private void RefreshSafetyChecks()
     {
         SafetyChecks.Clear();
-        BuildSafetyChecks(_pathResolver, accountCount);
+        BuildSafetyChecks(_pathResolver);
     }
 
     private void AddOperationLog(string status, string message)
