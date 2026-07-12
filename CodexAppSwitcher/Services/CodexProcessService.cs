@@ -16,7 +16,7 @@ public sealed class CodexProcessService
 {
     private const int GracefulCloseTimeoutMilliseconds = 5000;
     private const int LaunchTimeoutMilliseconds = 8000;
-    private static readonly string[] ProcessNames = ["Codex", "codex"];
+    private static readonly string[] ProcessNames = ["ChatGPT", "Codex", "codex", "OpenAI ChatGPT"];
     private readonly Func<bool>? _codexRunningOverride;
 
     /// <summary>
@@ -45,7 +45,7 @@ public sealed class CodexProcessService
         }
 
         return Process.GetProcesses()
-            .Any(process => ProcessNames.Contains(process.ProcessName));
+            .Any(IsCodexProcess);
     }
 
     /// <summary>
@@ -193,8 +193,23 @@ public sealed class CodexProcessService
 
     private static Process[] GetCodexProcesses() =>
         Process.GetProcesses()
-            .Where(process => ProcessNames.Contains(process.ProcessName))
+            .Where(IsCodexProcess)
             .ToArray();
+
+    public static bool IsCodexProcessName(string processName) =>
+        ProcessNames.Contains(processName, StringComparer.OrdinalIgnoreCase);
+
+    private static bool IsCodexProcess(Process process)
+    {
+        try
+        {
+            return IsCodexProcessName(process.ProcessName);
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+    }
 
     private static IEnumerable<LaunchCandidate> FindLaunchCandidates()
     {
@@ -215,6 +230,14 @@ public sealed class CodexProcessService
             new ProcessStartInfo
             {
                 FileName = "codex:",
+                UseShellExecute = true
+            });
+
+        yield return new LaunchCandidate(
+            "chatgpt protocol",
+            new ProcessStartInfo
+            {
+                FileName = "chatgpt:",
                 UseShellExecute = true
             });
 
@@ -251,13 +274,15 @@ public sealed class CodexProcessService
             return null;
         }
 
-        var preferredPath = Path.Combine(localAppData, "OpenAI", "Codex", "bin", "codex.exe");
-        if (File.Exists(preferredPath))
+        foreach (var preferredPath in BuildPreferredExecutablePaths(localAppData))
         {
-            return preferredPath;
+            if (File.Exists(preferredPath))
+            {
+                return preferredPath;
+            }
         }
 
-        var searchRoot = Path.Combine(localAppData, "OpenAI", "Codex");
+        var searchRoot = Path.Combine(localAppData, "OpenAI");
         if (!Directory.Exists(searchRoot))
         {
             return null;
@@ -276,6 +301,13 @@ public sealed class CodexProcessService
         }
     }
 
+    private static IEnumerable<string> BuildPreferredExecutablePaths(string localAppData)
+    {
+        yield return Path.Combine(localAppData, "OpenAI", "Codex", "bin", "codex.exe");
+        yield return Path.Combine(localAppData, "OpenAI", "ChatGPT", "bin", "codex.exe");
+        yield return Path.Combine(localAppData, "OpenAI", "ChatGPT", "codex.exe");
+    }
+
     private static string? FindCodexShortcut()
     {
         var shortcuts = new[]
@@ -288,7 +320,9 @@ public sealed class CodexProcessService
             .Where(path =>
             {
                 var name = Path.GetFileNameWithoutExtension(path);
-                return name.Contains("Codex", StringComparison.OrdinalIgnoreCase) &&
+                return (name.Contains("Codex", StringComparison.OrdinalIgnoreCase) ||
+                    name.Contains("ChatGPT", StringComparison.OrdinalIgnoreCase) ||
+                    name.Contains("OpenAI", StringComparison.OrdinalIgnoreCase)) &&
                     !name.Contains("Switcher", StringComparison.OrdinalIgnoreCase);
             })
             .OrderBy(GetShortcutScore)
@@ -318,7 +352,13 @@ public sealed class CodexProcessService
             return 0;
         }
 
-        return name.Contains("OpenAI", StringComparison.OrdinalIgnoreCase) ? 1 : 2;
+        if (string.Equals(name, "ChatGPT", StringComparison.OrdinalIgnoreCase) ||
+            name.Contains("OpenAI", StringComparison.OrdinalIgnoreCase))
+        {
+            return 1;
+        }
+
+        return 2;
     }
 
     private static string[] FindPackagedAppIds()
@@ -337,7 +377,8 @@ public sealed class CodexProcessService
 
         try
         {
-            return Directory.GetDirectories(windowsAppsRoot, "OpenAI.Codex_*", SearchOption.TopDirectoryOnly)
+            return Directory.EnumerateDirectories(windowsAppsRoot, "OpenAI.Codex_*", SearchOption.TopDirectoryOnly)
+                .Concat(Directory.EnumerateDirectories(windowsAppsRoot, "OpenAI.ChatGPT_*", SearchOption.TopDirectoryOnly))
                 .Select(Path.GetFileName)
                 .Where(name => !string.IsNullOrWhiteSpace(name))
                 .Select(TryBuildAppUserModelId)
@@ -363,8 +404,15 @@ public sealed class CodexProcessService
             return null;
         }
 
+        var identitySeparatorIndex = packageDirectoryName.IndexOf('_', StringComparison.Ordinal);
+        if (identitySeparatorIndex <= 0)
+        {
+            return null;
+        }
+
+        var identityName = packageDirectoryName[..identitySeparatorIndex];
         var familySuffix = packageDirectoryName[(doubleUnderscoreIndex + 2)..];
-        return $"OpenAI.Codex_{familySuffix}!App";
+        return $"{identityName}_{familySuffix}!App";
     }
 
     private static bool HasMainWindow(Process process)

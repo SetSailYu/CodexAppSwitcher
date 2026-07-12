@@ -20,7 +20,8 @@ public sealed class AccountRowViewModel
         bool isCurrent,
         bool isCapturing,
         bool isSwitching,
-        bool isTakeoverPending)
+        bool isTakeoverPending,
+        bool isUsageRefreshing)
     {
         AccountId = accountId;
         DisplayName = displayName;
@@ -34,6 +35,7 @@ public sealed class AccountRowViewModel
         IsCapturing = isCapturing;
         IsSwitching = isSwitching;
         IsTakeoverPending = isTakeoverPending;
+        IsUsageRefreshing = isUsageRefreshing;
     }
 
     /// <summary>
@@ -120,6 +122,11 @@ public sealed class AccountRowViewModel
     /// 是否正在等待完成接管。
     /// </summary>
     public bool IsTakeoverPending { get; }
+
+    /// <summary>
+    /// 是否正在刷新该账号用量。
+    /// </summary>
+    public bool IsUsageRefreshing { get; }
 
     /// <summary>
     /// 是否已经采集过 Codex App 登录态快照。

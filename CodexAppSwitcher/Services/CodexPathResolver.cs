@@ -34,16 +34,27 @@ public sealed class CodexPathResolver
     {
         get
         {
-            if (string.IsNullOrWhiteSpace(_options.UserProfileRootOverride) &&
-                IsDefaultRoamingRelativePath(_options.RoamingCodexRelativePath))
+            if (IsDefaultRoamingRelativePath(_options.RoamingCodexRelativePath))
             {
-                return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Codex");
+                return RoamingCodexCandidatePaths.FirstOrDefault(Directory.Exists) ??
+                    BuildRoamingPath("Codex");
             }
 
             var configuredPath = Path.Combine(UserProfilePath, _options.RoamingCodexRelativePath);
             return configuredPath;
         }
     }
+
+    /// <summary>
+    /// 鑾峰彇 Codex/ChatGPT App Roaming 鍊欓€夌洰褰曘€?
+    /// </summary>
+    public string[] RoamingCodexCandidatePaths =>
+        [
+            BuildRoamingPath("Codex"),
+            BuildRoamingPath("ChatGPT"),
+            BuildRoamingPath(Path.Combine("OpenAI", "Codex")),
+            BuildRoamingPath(Path.Combine("OpenAI", "ChatGPT"))
+        ];
 
     /// <summary>
     /// 获取 Codex auth.json 路径。
@@ -95,6 +106,15 @@ public sealed class CodexPathResolver
         return path
             .Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
             .Any(component => string.Equals(component, "..", StringComparison.Ordinal));
+    }
+
+    private string BuildRoamingPath(string relativePath)
+    {
+        var appDataRoot = string.IsNullOrWhiteSpace(_options.UserProfileRootOverride)
+            ? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)
+            : Path.Combine(UserProfilePath, "AppData", "Roaming");
+
+        return Path.Combine(appDataRoot, relativePath);
     }
 
     private static bool IsDefaultRoamingRelativePath(string path)

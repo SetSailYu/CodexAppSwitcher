@@ -455,13 +455,13 @@
                               Grid.RowSpan="2">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="184" />
+                                <ColumnDefinition Width="306" />
                             </Grid.ColumnDefinitions>
 
                             <ScrollViewer Grid.Column="0"
                                           HorizontalScrollBarVisibility="Auto"
                                           VerticalScrollBarVisibility="Disabled">
-                            <Grid MinWidth="844"
+                            <Grid MinWidth="920"
                                   Width="{Binding ViewportWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}}">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="42" />
@@ -476,9 +476,9 @@
                                             <ColumnDefinition Width="*" MinWidth="230" />
                                             <ColumnDefinition Width="76" />
                                             <ColumnDefinition Width="128" />
-                                            <ColumnDefinition Width="90" />
+                                            <ColumnDefinition Width="132" />
                                             <ColumnDefinition Width="128" />
-                                            <ColumnDefinition Width="146" />
+                                            <ColumnDefinition Width="156" />
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Text="账号名称" VerticalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" />
                                         <TextBlock Grid.Column="1" Text="状态" VerticalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" />
@@ -535,9 +535,9 @@
                                                         <ColumnDefinition Width="*" MinWidth="230" />
                                                         <ColumnDefinition Width="76" />
                                                         <ColumnDefinition Width="128" />
-                                                        <ColumnDefinition Width="90" />
+                                                        <ColumnDefinition Width="132" />
                                                         <ColumnDefinition Width="128" />
-                                                        <ColumnDefinition Width="146" />
+                                                        <ColumnDefinition Width="156" />
                                                     </Grid.ColumnDefinitions>
                                                     <StackPanel Orientation="Horizontal"
                                                                 VerticalAlignment="Center">
@@ -668,7 +668,8 @@
                                                     <TextBlock Grid.Column="3"
                                                                Text="{Binding FiveHourResetText}"
                                                                VerticalAlignment="Center"
-                                                               TextTrimming="CharacterEllipsis" />
+                                                               TextTrimming="CharacterEllipsis"
+                                                               ToolTip="{Binding FiveHourResetText}" />
                                                     <StackPanel Grid.Column="4"
                                                                 Orientation="Horizontal"
                                                                 VerticalAlignment="Center">
@@ -714,7 +715,8 @@
                                                     <TextBlock Grid.Column="5"
                                                                Text="{Binding WeeklyResetText}"
                                                                VerticalAlignment="Center"
-                                                               TextTrimming="CharacterEllipsis" />
+                                                               TextTrimming="CharacterEllipsis"
+                                                               ToolTip="{Binding WeeklyResetText}" />
                                                 </Grid>
                                             </Border>
                                         </DataTemplate>
@@ -922,6 +924,72 @@
                                                                 <TextBlock Text="更新中" FontSize="12" VerticalAlignment="Center" />
                                                             </StackPanel>
                                                         </Grid>
+                                                    </Button>
+                                                    <Button Command="{Binding DataContext.RefreshAccountUsageCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}"
+                                                            Width="58"
+                                                            Height="30"
+                                                            Margin="0,0,6,0"
+                                                            MinWidth="0"
+                                                            Padding="0"
+                                                            ToolTip="只刷新此账号的用量。">
+                                                        <Button.Style>
+                                                            <Style TargetType="{x:Type Button}" BasedOn="{StaticResource {x:Type Button}}">
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding DataContext.IsUsageRefreshing, RelativeSource={RelativeSource AncestorType=Window}}" Value="True">
+                                                                        <Setter Property="IsHitTestVisible" Value="False" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Button.Style>
+                                                        <Grid Width="52">
+                                                            <TextBlock Text="用量"
+                                                                       FontSize="12"
+                                                                       HorizontalAlignment="Center"
+                                                                       VerticalAlignment="Center">
+                                                                <TextBlock.Style>
+                                                                    <Style TargetType="{x:Type TextBlock}">
+                                                                        <Setter Property="Visibility" Value="Visible" />
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding IsUsageRefreshing}" Value="True">
+                                                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </TextBlock.Style>
+                                                            </TextBlock>
+                                                            <StackPanel Orientation="Horizontal"
+                                                                        HorizontalAlignment="Center"
+                                                                        VerticalAlignment="Center">
+                                                                <StackPanel.Style>
+                                                                    <Style TargetType="{x:Type StackPanel}">
+                                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding IsUsageRefreshing}" Value="True">
+                                                                                <Setter Property="Visibility" Value="Visible" />
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </StackPanel.Style>
+                                                                <ProgressBar Width="16"
+                                                                             Height="5"
+                                                                             IsIndeterminate="True"
+                                                                             VerticalAlignment="Center" />
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </Button>
+                                                    <Button Command="{Binding DataContext.RefreshAccountWebLoginCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}"
+                                                            Width="58"
+                                                            Height="30"
+                                                            Margin="0,0,6,0"
+                                                            MinWidth="0"
+                                                            Padding="0"
+                                                            ToolTip="重新打开此账号的 ChatGPT Web 登录窗口。">
+                                                        <TextBlock Text="Web"
+                                                                   FontSize="12"
+                                                                   HorizontalAlignment="Center"
+                                                                   VerticalAlignment="Center" />
                                                     </Button>
                                                     <Button Command="{Binding DataContext.SwitchAccountCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                                             CommandParameter="{Binding}"

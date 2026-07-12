@@ -46,6 +46,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private string? _capturingAccountId;
     private string? _switchingAccountId;
     private string? _takeoverAccountId;
+    private string? _refreshingUsageAccountId;
 
     /// <summary>
     /// 创建主窗口展示模型。
@@ -67,6 +68,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             pathResolver);
         AddChatGptAccountCommand = new RelayCommand(AddChatGptAccount);
         RefreshUsageCommand = new RelayCommand(() => _ = RefreshUsageAsync());
+        RefreshAccountUsageCommand = new RelayCommand(parameter => _ = RefreshAccountUsageAsync(parameter));
         ToggleUsageWidgetCommand = new RelayCommand(ToggleUsageWidget);
         OpenCodexAppCommand = new RelayCommand(() => _ = OpenCodexAppAsync());
         StopCodexAppCommand = new RelayCommand(() => _ = StopCodexAppAsync());
@@ -77,6 +79,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         RenameAccountCommand = new RelayCommand(RenameAccount);
         OpenAccountSnapshotDirectoryCommand = new RelayCommand(OpenAccountSnapshotDirectory);
         OpenAccountWebProfileDirectoryCommand = new RelayCommand(OpenAccountWebProfileDirectory);
+        RefreshAccountWebLoginCommand = new RelayCommand(RefreshAccountWebLogin);
         DeleteAccountCommand = new RelayCommand(DeleteAccount);
         RefreshCodexAppStatus();
 
@@ -228,6 +231,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public ICommand RefreshUsageCommand { get; }
 
     /// <summary>
+    /// 刷新单个账号 Codex 用量命令。
+    /// </summary>
+    public ICommand RefreshAccountUsageCommand { get; }
+
+    /// <summary>
     /// 显示或隐藏当前账号额度挂件命令。
     /// </summary>
     public ICommand ToggleUsageWidgetCommand { get; }
@@ -276,6 +284,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     /// 打开账号 Web 登录目录命令。
     /// </summary>
     public ICommand OpenAccountWebProfileDirectoryCommand { get; }
+
+    /// <summary>
+    /// 重新登录账号 WebView2 登录态命令。
+    /// </summary>
+    public ICommand RefreshAccountWebLoginCommand { get; }
 
     /// <summary>
     /// 删除账号本地数据命令。
@@ -470,7 +483,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             account.IsCurrent,
             account.AccountId == _capturingAccountId,
             account.AccountId == _switchingAccountId,
-            account.AccountId == _takeoverAccountId);
+            account.AccountId == _takeoverAccountId,
+            account.AccountId == _refreshingUsageAccountId);
     }
 
     private async Task RefreshUsageAsync()
@@ -481,9 +495,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
 
         IsUsageRefreshing = true;
+        var accounts = _metadataStore.LoadAll();
         try
         {
             LastOperation = "正在刷新账号用量...";
+            AddOperationLog("信息", LastOperation);
             if (!_featureFlags.EnableUsageRefresh)
             {
                 LastOperation = "用量刷新未启用：请在 appsettings.json 中开启 FeatureFlags:EnableUsageRefresh 后重启工具。";
@@ -491,7 +507,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 return;
             }
 
-            var accounts = _metadataStore.LoadAll();
             if (accounts.Count == 0)
             {
                 LastOperation = "暂无可刷新的账号。";
@@ -503,28 +518,147 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             var failedAccountNames = new List<string>();
             foreach (var account in accounts)
             {
-                var result = await _usageService.RefreshAsync(account.BrowserProfilePath);
-                if (result.IsSuccess && result.Snapshot is not null)
+                _refreshingUsageAccountId = account.AccountId;
+                RebuildAccountRows(accounts);
+
+                var result = await RefreshSingleAccountUsageAsync(account);
+                if (result.IsSuccess)
                 {
-                    _usageSnapshots[account.AccountId] = result.Snapshot;
-                    _usageStore.Save(account.AccountId, result.Snapshot);
                     successCount++;
-                    AddOperationLog("成功", $"已刷新账号 {account.DisplayName} 的用量。");
                     continue;
                 }
 
                 failedAccountNames.Add(account.DisplayName);
-                AddOperationLog("警告", $"账号 {account.DisplayName} 用量刷新失败：{result.Message}");
             }
 
+            _refreshingUsageAccountId = null;
             RebuildAccountRows(accounts);
             LastOperation = BuildUsageRefreshSummary(accounts.Count, successCount, failedAccountNames);
             AddOperationLog(failedAccountNames.Count == 0 ? "成功" : "警告", LastOperation);
         }
         finally
         {
+            _refreshingUsageAccountId = null;
             IsUsageRefreshing = false;
+            RebuildAccountRows(accounts);
         }
+    }
+
+    private async Task RefreshAccountUsageAsync(object? parameter)
+    {
+        if (IsUsageRefreshing)
+        {
+            return;
+        }
+
+        if (parameter is not AccountRowViewModel targetAccount)
+        {
+            LastOperation = "未选择要刷新用量的账号。";
+            AddOperationLog("警告", LastOperation);
+            return;
+        }
+
+        var accounts = _metadataStore.LoadAll();
+        var account = accounts.FirstOrDefault(item => item.AccountId == targetAccount.AccountId);
+        if (account is null)
+        {
+            LastOperation = $"账号 {targetAccount.DisplayName} 不存在，无法刷新用量。";
+            AddOperationLog("警告", LastOperation);
+            return;
+        }
+
+        IsUsageRefreshing = true;
+        _refreshingUsageAccountId = account.AccountId;
+        RebuildAccountRows(accounts);
+        try
+        {
+            if (!_featureFlags.EnableUsageRefresh)
+            {
+                LastOperation = "用量刷新未启用：请在 appsettings.json 中开启 FeatureFlags:EnableUsageRefresh 后重启工具。";
+                AddOperationLog("警告", LastOperation);
+                return;
+            }
+
+            LastOperation = $"正在刷新账号 {account.DisplayName} 的用量...";
+            AddOperationLog("信息", LastOperation);
+            var result = await RefreshSingleAccountUsageAsync(account);
+            LastOperation = result.IsSuccess
+                ? $"已刷新账号 {account.DisplayName} 的用量。"
+                : $"账号 {account.DisplayName} 用量刷新失败：{result.Message}";
+        }
+        finally
+        {
+            _refreshingUsageAccountId = null;
+            IsUsageRefreshing = false;
+            RebuildAccountRows(accounts);
+        }
+    }
+
+    private async Task<UsageRefreshResult> RefreshSingleAccountUsageAsync(AccountMetadata account)
+    {
+        var result = await _usageService.RefreshAsync(account.BrowserProfilePath, account.DisplayName);
+        if (result.IsSuccess && result.Snapshot is not null)
+        {
+            _usageSnapshots[account.AccountId] = result.Snapshot;
+            _usageStore.Save(account.AccountId, result.Snapshot);
+            AddOperationLog("成功", $"已刷新账号 {account.DisplayName} 的用量：{result.Message}");
+            return result;
+        }
+
+        AddOperationLog("警告", $"账号 {account.DisplayName} 用量刷新失败：{result.Message}");
+        return result;
+    }
+
+    private void RefreshAccountWebLogin(object? parameter)
+    {
+        if (parameter is not AccountRowViewModel row)
+        {
+            LastOperation = "未选择要重新登录 Web 的账号。";
+            AddOperationLog("警告", LastOperation);
+            return;
+        }
+
+        var accounts = _metadataStore.LoadAll().ToList();
+        var account = accounts.FirstOrDefault(item => item.AccountId == row.AccountId);
+        if (account is null)
+        {
+            LastOperation = $"账号 {row.DisplayName} 不存在，无法重新登录 Web。";
+            AddOperationLog("警告", LastOperation);
+            return;
+        }
+
+        var identity = ShowAddAccountWindow(account.BrowserProfilePath);
+        if (!identity.HasUserIdentifier)
+        {
+            LastOperation = $"账号 {account.DisplayName} Web 重新登录未完成或未识别账号 ID。";
+            AddOperationLog("警告", LastOperation);
+            return;
+        }
+
+        if (account.UserIdentifier.Length > 0
+            && !string.Equals(account.UserIdentifier, identity.UserIdentifier, StringComparison.OrdinalIgnoreCase))
+        {
+            var confirmation = ThemedDialogService.Confirm(
+                Application.Current.MainWindow,
+                "确认更新 Web 登录态",
+                $"当前账号：{account.DisplayName}\n识别到账号：{identity.UserIdentifier}\n\n是否用识别到的账号更新此条记录的 Web 登录态？\nCodex App 快照不会变更。",
+                "确认更新",
+                "取消");
+            if (!confirmation)
+            {
+                LastOperation = $"用户取消更新账号 {account.DisplayName} 的 Web 登录态。";
+                AddOperationLog("信息", LastOperation);
+                return;
+            }
+        }
+
+        account.DisplayName = identity.UserIdentifier;
+        account.UserIdentifier = identity.UserIdentifier;
+        account.Hint = $"ChatGPT Web 登录态已更新；身份来源：{identity.Source}；Codex App 快照未变更。";
+        _metadataStore.Save(account);
+        RebuildAccountRows(_metadataStore.LoadAll());
+        LastOperation = $"账号 {account.DisplayName} Web 登录态已更新；Codex App 快照未变更。";
+        AddOperationLog("成功", LastOperation);
     }
 
     private void RebuildAccountRows(IReadOnlyList<AccountMetadata> accounts)
@@ -1035,10 +1169,18 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private void BuildSafetyChecks(CodexPathResolver pathResolver)
     {
         var authDirectory = Path.GetDirectoryName(pathResolver.AuthJsonPath);
+        var authExists = File.Exists(pathResolver.AuthJsonPath);
+        var authDirectoryExists = authDirectory is not null && Directory.Exists(authDirectory);
+        var roamingPath = pathResolver.RoamingCodexPath;
+        var roamingExists = Directory.Exists(roamingPath);
+        var roamingStatus = roamingExists
+            ? $"存在：{roamingPath}"
+            : $"未找到（可选）：{roamingPath}";
+
         SafetyChecks.Add(new SafetyCheckRow("配置已加载", true));
-        SafetyChecks.Add(new SafetyCheckRow($"live auth：{(File.Exists(pathResolver.AuthJsonPath) ? "存在" : "未找到")}", File.Exists(pathResolver.AuthJsonPath)));
-        SafetyChecks.Add(new SafetyCheckRow($"auth 目录：{authDirectory ?? "未解析"}", authDirectory is not null && Directory.Exists(authDirectory)));
-        SafetyChecks.Add(new SafetyCheckRow($"Roaming 附加目录：{(Directory.Exists(pathResolver.RoamingCodexPath) ? "存在" : "未找到")}", Directory.Exists(pathResolver.RoamingCodexPath)));
+        SafetyChecks.Add(new SafetyCheckRow($"live auth：{(authExists ? "存在" : "未找到")}", authExists));
+        SafetyChecks.Add(new SafetyCheckRow($"auth 目录：{authDirectory ?? "未解析"}", authDirectoryExists));
+        SafetyChecks.Add(new SafetyCheckRow($"Roaming 附加目录：{roamingStatus}", true));
     }
 
     private void RefreshSafetyChecks()

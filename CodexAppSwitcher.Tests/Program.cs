@@ -26,13 +26,17 @@ public static class Program
             TestSwitchWritesOnlyLiveAuth(root);
             TestSwitchDoesNotRollbackWhenApplyFails(root);
             TestRoamingPathDoesNotFallbackToPackageState(root);
+            TestRoamingPathUsesExistingChatGptCandidate(root);
             TestExecuteSwitchDoesNotReplacePackageState(root);
+            TestCodexProcessNameIncludesChatGptShell();
             TestSnapshotCaptureRejectsOverwriteByDefault(root);
             TestSnapshotCaptureOverwritesWhenConfirmed(root);
             TestSnapshotCaptureAcceptsMinimalAuthState(root);
             TestSnapshotCaptureKeepsValidFilesWhenRuntimeFileIsLocked(root);
             TestSnapshotCaptureDoesNotIncludePackageState(root);
             TestUsageParserReadsChineseAnalyticsText();
+            TestUsageParserReadsChatGptCodexUsageDialogText();
+            TestUsageParserReadsWhamUsageApiJson();
             TestUsageParserClampsPercentAndReadsEnglishText();
             TestUsageParserRejectsIncompleteText();
             Console.WriteLine("全部测试通过。");
@@ -159,6 +163,27 @@ public static class Program
             "主登录态目录必须保持为 AppData Roaming Codex，不能退到 MSIX 包状态目录。");
     }
 
+    private static void TestRoamingPathUsesExistingChatGptCandidate(string root)
+    {
+        var userRoot = Path.Combine(root, "roaming-chatgpt-candidate", "user");
+        var chatGptRoamingPath = Path.Combine(userRoot, "AppData", "Roaming", "ChatGPT");
+        Directory.CreateDirectory(chatGptRoamingPath);
+        var paths = new CodexPathResolver(new CodexPathOptions
+        {
+            UserProfileRootOverride = userRoot,
+            RoamingCodexRelativePath = Path.Combine("AppData", "Roaming", "Codex")
+        });
+
+        Assert(paths.RoamingCodexPath == chatGptRoamingPath, "存在 ChatGPT Roaming 候选时应优先使用新版目录。");
+    }
+
+    private static void TestCodexProcessNameIncludesChatGptShell()
+    {
+        Assert(CodexProcessService.IsCodexProcessName("ChatGPT"), "新版 ChatGPT 壳进程应被识别为 Codex App。");
+        Assert(CodexProcessService.IsCodexProcessName("codex"), "Codex CLI 子进程应继续被识别。");
+        Assert(!CodexProcessService.IsCodexProcessName("codex-command-runner-0.144.0-alpha.4"), "不应误伤 Codex 辅助命令执行进程。");
+    }
+
     private static void TestSnapshotCaptureRejectsOverwriteByDefault(string root)
     {
         var context = CreateContext(Path.Combine(root, "snapshot-reject-overwrite"));
@@ -252,6 +277,70 @@ public static class Program
         Assert(snapshot.FiveHourResetText == "16:39", "5 小时重置时间解析错误。");
         Assert(snapshot.WeeklyResetText == "2026年6月25日 11:42", "每周重置时间解析错误。");
         Assert(snapshot.ExtraQuotaText == "0", "剩余额度解析错误。");
+    }
+
+    private static void TestUsageParserReadsChatGptCodexUsageDialogText()
+    {
+        var snapshot = UsageStatusService.TryParseVisibleText("""
+            使用量
+            5 小时使用限制
+            将于 02:19 重置
+            剩余 72%
+            每周使用限额
+            将于 7月18日 重置
+            剩余 96%
+            使用限额重置
+            可用 3 次
+            """);
+
+        if (snapshot is null)
+        {
+            throw new InvalidOperationException("ChatGPT Codex 使用情况弹窗文本应可解析。");
+        }
+
+        Assert(snapshot.FiveHourRemainingPercent == 72, "Codex 弹窗 5 小时剩余比例解析错误。");
+        Assert(snapshot.WeeklyRemainingPercent == 96, "Codex 弹窗每周剩余比例解析错误。");
+        Assert(snapshot.FiveHourResetText == "02:19", "Codex 弹窗 5 小时重置时间解析错误。");
+        Assert(snapshot.WeeklyResetText == "7月18日", "Codex 弹窗每周重置时间解析错误。");
+        Assert(snapshot.ExtraQuotaText == "3", "Codex 弹窗可用重置次数解析错误。");
+    }
+
+    private static void TestUsageParserReadsWhamUsageApiJson()
+    {
+        var snapshot = UsageStatusService.TryParseUsageApiJson("""
+            {
+              "email": "yusetsail@gmail.com",
+              "rate_limit": {
+                "primary_window": {
+                  "used_percent": 1,
+                  "reset_at": 1783798194
+                },
+                "secondary_window": {
+                  "used_percent": 15,
+                  "reset_at": 1784366482
+                }
+              },
+              "credits": {
+                "balance": "0"
+              },
+              "rate_limit_reset_credits": {
+                "available_count": 2
+              }
+            }
+            """);
+
+        if (snapshot is null)
+        {
+            throw new InvalidOperationException("wham usage API JSON 应可解析。");
+        }
+
+        var fiveHourReset = DateTimeOffset.FromUnixTimeSeconds(1783798194).LocalDateTime;
+        var weeklyReset = DateTimeOffset.FromUnixTimeSeconds(1784366482).LocalDateTime;
+        Assert(snapshot.FiveHourRemainingPercent == 99, "wham API 5 小时剩余比例解析错误。");
+        Assert(snapshot.WeeklyRemainingPercent == 85, "wham API 每周剩余比例解析错误。");
+        Assert(snapshot.FiveHourResetText == $"{fiveHourReset:yyyy年M月d日 H:mm}", "wham API 5 小时重置时间解析错误。");
+        Assert(snapshot.WeeklyResetText == $"{weeklyReset:yyyy年M月d日 H:mm}", "wham API 每周重置时间解析错误。");
+        Assert(snapshot.ExtraQuotaText == "0", "wham API 剩余额度解析错误。");
     }
 
     private static void TestUsageParserClampsPercentAndReadsEnglishText()
