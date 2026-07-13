@@ -2,7 +2,7 @@
 
 CodexAppSwitcher 是一款面向 Windows 的 ChatGPT Codex 账号切换工具，用于在本机保存多个账号的 Codex App 登录快照，并提供账号切换、用量查看、状态检查和后台托盘管理能力。
 
-当前版本：`v1.1.1`
+当前版本：`v1.1.2`
 
 ## 功能特性
 
@@ -10,7 +10,7 @@ CodexAppSwitcher 是一款面向 Windows 的 ChatGPT Codex 账号切换工具，
 - 账号切换：在已接管的 Codex App 账号之间一键切换。
 - 登录快照：为每个账号保存独立的 Codex App auth 快照。
 - 快照更新：使用当前 Codex App 登录态更新指定账号快照。
-- 用量刷新：读取 ChatGPT Codex 5 小时额度、每周额度和重置时间。
+- 用量刷新：读取 ChatGPT Codex 短期额度、每周额度和重置时间；服务端未提供额度窗口时显示未提供。
 - 单账号刷新：可只刷新某一个账号的用量数据。
 - Web 登录维护：可重新打开指定账号的 ChatGPT Web 登录窗口。
 - 桌面额度挂件：显示当前账号额度状态，并支持快速刷新。
@@ -143,7 +143,7 @@ flowchart TD
 - 点击账号行的 `用量` 可只刷新该账号。
 - 桌面额度挂件可刷新当前使用账号。
 
-用量数据来自 ChatGPT Codex 的使用情况接口，包含 5 小时额度、每周额度和对应重置时间。
+用量数据来自 ChatGPT Codex 的使用情况接口。接口返回额度窗口时会显示短期额度、每周额度和对应重置时间；接口只返回历史用量时，额度窗口显示为未提供。
 
 ### 维护 Web 登录状态
 
@@ -180,13 +180,12 @@ flowchart TD
 
 ## 用量显示
 
-账号列表和桌面额度挂件会显示：
+账号列表会显示：
 
-- 5 小时剩余额度
-- 5 小时重置时间
 - 每周剩余额度
 - 每周重置时间
-- 可用的额度重置次数或剩余额度信息
+
+桌面额度挂件会突出显示每周剩余额度；当前账号悬浮提示会显示每周额度和每周重置时间。
 
 如果重置时间在账号列表中显示不完整，可将鼠标悬停在时间文本上查看完整内容。
 
@@ -238,6 +237,12 @@ dotnet publish CodexAppSwitcher\CodexAppSwitcher.csproj -p:PublishProfile=Folder
 
 ```text
 CodexAppSwitcher\bin\Release\net8.0-windows\publish\win-x64
+```
+
+发布包建议命名：
+
+```text
+CodexAppSwitcher-v1.1.2-win-x64.zip
 ```
 
 ## 常见问题

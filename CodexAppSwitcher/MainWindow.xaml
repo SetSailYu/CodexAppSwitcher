@@ -4,10 +4,10 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="CodexAppSwitcher"
-        Width="1680"
-        Height="945"
-        MinWidth="1280"
-        MinHeight="760"
+        Width="1480"
+        Height="860"
+        MinWidth="1180"
+        MinHeight="720"
         WindowStyle="None"
         ResizeMode="CanResize"
         WindowStartupLocation="CenterScreen"
@@ -461,7 +461,7 @@
                             <ScrollViewer Grid.Column="0"
                                           HorizontalScrollBarVisibility="Auto"
                                           VerticalScrollBarVisibility="Disabled">
-                            <Grid MinWidth="920"
+                            <Grid MinWidth="660"
                                   Width="{Binding ViewportWidth, RelativeSource={RelativeSource AncestorType=ScrollViewer}}">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="42" />
@@ -476,16 +476,12 @@
                                             <ColumnDefinition Width="*" MinWidth="230" />
                                             <ColumnDefinition Width="76" />
                                             <ColumnDefinition Width="128" />
-                                            <ColumnDefinition Width="132" />
-                                            <ColumnDefinition Width="128" />
                                             <ColumnDefinition Width="156" />
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Text="账号名称" VerticalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" />
                                         <TextBlock Grid.Column="1" Text="状态" VerticalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" />
-                                        <TextBlock Grid.Column="2" Text="5 小时额度" VerticalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" />
-                                        <TextBlock Grid.Column="3" Text="5 小时重置" VerticalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" />
-                                        <TextBlock Grid.Column="4" Text="每周额度" VerticalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" />
-                                        <TextBlock Grid.Column="5" Text="每周重置" VerticalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" />
+                                        <TextBlock Grid.Column="2" Text="每周额度" VerticalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" />
+                                        <TextBlock Grid.Column="3" Text="每周重置" VerticalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" />
                                     </Grid>
                                 </Border>
 
@@ -534,8 +530,6 @@
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="*" MinWidth="230" />
                                                         <ColumnDefinition Width="76" />
-                                                        <ColumnDefinition Width="128" />
-                                                        <ColumnDefinition Width="132" />
                                                         <ColumnDefinition Width="128" />
                                                         <ColumnDefinition Width="156" />
                                                     </Grid.ColumnDefinitions>
@@ -626,53 +620,6 @@
                                                     <StackPanel Grid.Column="2"
                                                                 Orientation="Horizontal"
                                                                 VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding FiveHourText}"
-                                                                   FontSize="18"
-                                                                   Margin="0,0,8,0">
-                                                            <TextBlock.Style>
-                                                                <Style TargetType="{x:Type TextBlock}">
-                                                                    <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding IsFiveHourUsageWarning}" Value="True">
-                                                                            <Setter Property="Foreground" Value="{StaticResource WarningBrush}" />
-                                                                        </DataTrigger>
-                                                                        <DataTrigger Binding="{Binding IsFiveHourUsageCritical}" Value="True">
-                                                                            <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </TextBlock.Style>
-                                                        </TextBlock>
-                                                        <ProgressBar Width="70"
-                                                                     Maximum="100"
-                                                                     Value="{Binding FiveHourProgressValue, Mode=OneWay}">
-                                                            <ProgressBar.Style>
-                                                                <Style TargetType="{x:Type ProgressBar}" BasedOn="{StaticResource {x:Type ProgressBar}}">
-                                                                    <Setter Property="Visibility" Value="Visible" />
-                                                                    <Setter Property="Foreground" Value="{StaticResource SuccessBrush}" />
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding HasUsageData}" Value="False">
-                                                                            <Setter Property="Visibility" Value="Collapsed" />
-                                                                        </DataTrigger>
-                                                                        <DataTrigger Binding="{Binding IsFiveHourUsageWarning}" Value="True">
-                                                                            <Setter Property="Foreground" Value="{StaticResource WarningBrush}" />
-                                                                        </DataTrigger>
-                                                                        <DataTrigger Binding="{Binding IsFiveHourUsageCritical}" Value="True">
-                                                                            <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </ProgressBar.Style>
-                                                        </ProgressBar>
-                                                    </StackPanel>
-                                                    <TextBlock Grid.Column="3"
-                                                               Text="{Binding FiveHourResetText}"
-                                                               VerticalAlignment="Center"
-                                                               TextTrimming="CharacterEllipsis"
-                                                               ToolTip="{Binding FiveHourResetText}" />
-                                                    <StackPanel Grid.Column="4"
-                                                                Orientation="Horizontal"
-                                                                VerticalAlignment="Center">
                                                         <TextBlock Text="{Binding WeeklyText}"
                                                                    FontSize="18"
                                                                    Margin="0,0,8,0">
@@ -712,7 +659,7 @@
                                                             </ProgressBar.Style>
                                                         </ProgressBar>
                                                     </StackPanel>
-                                                    <TextBlock Grid.Column="5"
+                                                    <TextBlock Grid.Column="3"
                                                                Text="{Binding WeeklyResetText}"
                                                                VerticalAlignment="Center"
                                                                TextTrimming="CharacterEllipsis"
@@ -1164,7 +1111,7 @@
                                                     <ColumnDefinition Width="58" />
                                                     <ColumnDefinition Width="*" />
                                                 </Grid.ColumnDefinitions>
-                                                <TextBlock Text="5 小时"
+                                                <TextBlock Text="短期"
                                                            Foreground="{StaticResource TextMutedBrush}"
                                                            VerticalAlignment="Center" />
                                                 <TextBlock Grid.Column="1"
@@ -1435,7 +1382,7 @@
                         BorderBrush="{StaticResource BorderBrush}"
                         BorderThickness="0,1,0,0">
                     <DockPanel LastChildFill="False" Margin="18,0">
-                        <TextBlock Text="版本：1.1.0" VerticalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" />
+                        <TextBlock Text="版本：1.1.2" VerticalAlignment="Center" Foreground="{StaticResource TextMutedBrush}" />
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock Text="{Binding DataDirectoryText}" Foreground="{StaticResource TextMutedBrush}" />
                             <Button Command="{Binding OpenDataDirectoryCommand}"

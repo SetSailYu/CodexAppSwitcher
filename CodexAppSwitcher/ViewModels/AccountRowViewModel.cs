@@ -59,7 +59,7 @@ public sealed class AccountRowViewModel
     public string HealthText { get; }
 
     /// <summary>
-    /// 五小时额度剩余百分比。
+    /// 短期额度剩余百分比。
     /// </summary>
     public int? FiveHourRemainingPercent { get; }
 
@@ -69,7 +69,7 @@ public sealed class AccountRowViewModel
     public int? WeeklyRemainingPercent { get; }
 
     /// <summary>
-    /// 五小时进度条数值。
+    /// 短期额度进度条数值。
     /// </summary>
     public int FiveHourProgressValue => FiveHourRemainingPercent ?? 0;
 
@@ -79,12 +79,12 @@ public sealed class AccountRowViewModel
     public int WeeklyProgressValue => WeeklyRemainingPercent ?? 0;
 
     /// <summary>
-    /// 五小时额度是否低于警告阈值。
+    /// 短期额度是否低于警告阈值。
     /// </summary>
     public bool IsFiveHourUsageWarning => IsWarningUsage(FiveHourRemainingPercent);
 
     /// <summary>
-    /// 五小时额度是否低于危险阈值。
+    /// 短期额度是否低于危险阈值。
     /// </summary>
     public bool IsFiveHourUsageCritical => IsCriticalUsage(FiveHourRemainingPercent);
 
@@ -101,7 +101,7 @@ public sealed class AccountRowViewModel
     /// <summary>
     /// 是否已有真实用量数据。
     /// </summary>
-    public bool HasUsageData => FiveHourRemainingPercent.HasValue && WeeklyRemainingPercent.HasValue;
+    public bool HasUsageData => FiveHourRemainingPercent.HasValue || WeeklyRemainingPercent.HasValue;
 
     /// <summary>
     /// 是否为当前活动账号。
@@ -139,7 +139,7 @@ public sealed class AccountRowViewModel
     public string TakeoverActionText => IsManaged ? "重接管" : "接管";
 
     /// <summary>
-    /// 五小时额度重置时间展示文本。
+    /// 短期额度重置时间展示文本。
     /// </summary>
     public string FiveHourResetText { get; }
 
@@ -149,7 +149,7 @@ public sealed class AccountRowViewModel
     public string WeeklyResetText { get; }
 
     /// <summary>
-    /// 五小时额度展示文本。
+    /// 短期额度展示文本。
     /// </summary>
     public string FiveHourText => FiveHourRemainingPercent.HasValue ? $"{FiveHourRemainingPercent.Value} %" : "--";
 

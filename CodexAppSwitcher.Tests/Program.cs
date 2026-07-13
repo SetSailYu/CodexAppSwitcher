@@ -37,6 +37,8 @@ public static class Program
             TestUsageParserReadsChineseAnalyticsText();
             TestUsageParserReadsChatGptCodexUsageDialogText();
             TestUsageParserReadsWhamUsageApiJson();
+            TestUsageParserClassifiesWeeklyPrimaryWindow();
+            TestUsageParserReadsWhamUsageHistoryJsonWithoutRateLimits();
             TestUsageParserClampsPercentAndReadsEnglishText();
             TestUsageParserRejectsIncompleteText();
             Console.WriteLine("全部测试通过。");
@@ -313,10 +315,12 @@ public static class Program
               "rate_limit": {
                 "primary_window": {
                   "used_percent": 1,
+                  "limit_window_seconds": 18000,
                   "reset_at": 1783798194
                 },
                 "secondary_window": {
                   "used_percent": 15,
+                  "limit_window_seconds": 604800,
                   "reset_at": 1784366482
                 }
               },
@@ -341,6 +345,73 @@ public static class Program
         Assert(snapshot.FiveHourResetText == $"{fiveHourReset:yyyy年M月d日 H:mm}", "wham API 5 小时重置时间解析错误。");
         Assert(snapshot.WeeklyResetText == $"{weeklyReset:yyyy年M月d日 H:mm}", "wham API 每周重置时间解析错误。");
         Assert(snapshot.ExtraQuotaText == "0", "wham API 剩余额度解析错误。");
+    }
+
+    private static void TestUsageParserClassifiesWeeklyPrimaryWindow()
+    {
+        var snapshot = UsageStatusService.TryParseUsageApiJson("""
+            {
+              "rate_limit": {
+                "allowed": true,
+                "limit_reached": false,
+                "primary_window": {
+                  "used_percent": 2,
+                  "limit_window_seconds": 604800,
+                  "reset_after_seconds": 603575,
+                  "reset_at": 1784509842
+                },
+                "secondary_window": null
+              },
+              "credits": {
+                "balance": "0"
+              },
+              "rate_limit_reset_credits": {
+                "available_count": 3
+              }
+            }
+            """);
+
+        if (snapshot is null)
+        {
+            throw new InvalidOperationException("仅 primary_window 表达每周额度的 wham usage API JSON 应可解析。");
+        }
+
+        var weeklyReset = DateTimeOffset.FromUnixTimeSeconds(1784509842).LocalDateTime;
+        Assert(snapshot.FiveHourRemainingPercent is null, "仅返回每周窗口时不应伪造短期额度。");
+        Assert(snapshot.WeeklyRemainingPercent == 98, "primary_window 为 7 天窗口时应映射为每周剩余额度。");
+        Assert(snapshot.FiveHourResetText == "未提供", "仅返回每周窗口时短期重置应显示未提供。");
+        Assert(snapshot.WeeklyResetText == $"{weeklyReset:yyyy年M月d日 H:mm}", "primary_window 每周重置时间解析错误。");
+        Assert(snapshot.ExtraQuotaText == "0", "primary_window 每周窗口剩余额度解析错误。");
+    }
+
+    private static void TestUsageParserReadsWhamUsageHistoryJsonWithoutRateLimits()
+    {
+        var snapshot = UsageStatusService.TryParseUsageApiJson("""
+            {
+              "data": [
+                {
+                  "date": "2026-06-14",
+                  "product_surface_usage_values": {
+                    "cli": 0.0,
+                    "vscode": 0.0,
+                    "web": 0.0,
+                    "work_web": 0.0
+                  }
+                }
+              ]
+            }
+            """);
+
+        if (snapshot is null)
+        {
+            throw new InvalidOperationException("仅包含历史用量的 wham usage API JSON 应可解析。");
+        }
+
+        Assert(snapshot.FiveHourRemainingPercent is null, "未提供短期额度时不应伪造剩余比例。");
+        Assert(snapshot.WeeklyRemainingPercent is null, "未提供每周额度时不应伪造剩余比例。");
+        Assert(snapshot.FiveHourResetText == "未提供", "未提供短期额度时应显示未提供。");
+        Assert(snapshot.WeeklyResetText == "未提供", "未提供每周额度时应显示未提供。");
+        Assert(snapshot.ExtraQuotaText == "未提供", "未提供重置额度时应显示未提供。");
     }
 
     private static void TestUsageParserClampsPercentAndReadsEnglishText()

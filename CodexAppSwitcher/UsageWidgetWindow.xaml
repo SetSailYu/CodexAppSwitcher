@@ -60,10 +60,10 @@
                TargetType="{x:Type TextBlock}">
             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
             <Style.Triggers>
-                <DataTrigger Binding="{Binding CurrentAccountUsage.IsFiveHourUsageWarning}" Value="True">
+                <DataTrigger Binding="{Binding CurrentAccountUsage.IsWeeklyUsageWarning}" Value="True">
                     <Setter Property="Foreground" Value="{StaticResource WarningBrush}" />
                 </DataTrigger>
-                <DataTrigger Binding="{Binding CurrentAccountUsage.IsFiveHourUsageCritical}" Value="True">
+                <DataTrigger Binding="{Binding CurrentAccountUsage.IsWeeklyUsageCritical}" Value="True">
                     <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
                 </DataTrigger>
             </Style.Triggers>
@@ -80,26 +80,6 @@
                     <TextBlock Text="{Binding CurrentAccountLoginTimeText}"
                                Foreground="{StaticResource TextMutedBrush}"
                                Margin="0,4,0,8" />
-                    <Grid Margin="0,0,0,4">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="76" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="5 小时额度"
-                                   Foreground="{StaticResource TextMutedBrush}" />
-                        <TextBlock Grid.Column="1"
-                                   Text="{Binding CurrentAccountUsage.FiveHourText, TargetNullValue=--}" />
-                    </Grid>
-                    <Grid Margin="0,0,0,4">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="76" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="5 小时重置"
-                                   Foreground="{StaticResource TextMutedBrush}" />
-                        <TextBlock Grid.Column="1"
-                                   Text="{Binding CurrentAccountUsage.FiveHourResetText, TargetNullValue=等待检测}" />
-                    </Grid>
                     <Grid Margin="0,0,0,4">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="76" />
@@ -148,7 +128,7 @@
         </Border>
 
         <controls:CircularProgressRing Margin="6"
-                                       Value="{Binding CurrentAccountUsage.FiveHourProgressValue, Mode=OneWay, TargetNullValue=0, FallbackValue=0}"
+                                       Value="{Binding CurrentAccountUsage.WeeklyProgressValue, Mode=OneWay, TargetNullValue=0, FallbackValue=0}"
                                        Maximum="100"
                                        TrackBrush="#26384A"
                                        StrokeThickness="2.6">
@@ -156,10 +136,10 @@
                 <Style TargetType="{x:Type controls:CircularProgressRing}">
                     <Setter Property="ProgressBrush" Value="{StaticResource SuccessBrush}" />
                     <Style.Triggers>
-                        <DataTrigger Binding="{Binding CurrentAccountUsage.IsFiveHourUsageWarning}" Value="True">
+                        <DataTrigger Binding="{Binding CurrentAccountUsage.IsWeeklyUsageWarning}" Value="True">
                             <Setter Property="ProgressBrush" Value="{StaticResource WarningBrush}" />
                         </DataTrigger>
-                        <DataTrigger Binding="{Binding CurrentAccountUsage.IsFiveHourUsageCritical}" Value="True">
+                        <DataTrigger Binding="{Binding CurrentAccountUsage.IsWeeklyUsageCritical}" Value="True">
                             <Setter Property="ProgressBrush" Value="{StaticResource DangerBrush}" />
                         </DataTrigger>
                     </Style.Triggers>
@@ -232,57 +212,26 @@
                   StrokeEndLineCap="Round" />
         </Button>
 
-        <StackPanel Width="66"
+        <StackPanel Width="70"
                     VerticalAlignment="Center"
                     HorizontalAlignment="Center"
-                    Margin="0,10,0,0">
-            <TextBlock Text="5小时"
+                    Margin="0,8,0,0">
+            <TextBlock Text="每周"
                        Foreground="{StaticResource TextMutedBrush}"
-                       FontSize="9"
+                       FontSize="10"
                        HorizontalAlignment="Center" />
-            <TextBlock Text="{Binding CurrentAccountUsage.FiveHourText, TargetNullValue=--}"
-                       FontSize="21"
+            <TextBlock Text="{Binding CurrentAccountUsage.WeeklyText, TargetNullValue=--}"
+                       FontSize="24"
                        FontWeight="SemiBold"
-                       LineHeight="23"
+                       LineHeight="27"
                        HorizontalAlignment="Center"
                        Margin="0,-1,0,0"
                        Style="{StaticResource WidgetUsageTextStyle}" />
-            <Border Height="18"
-                    MinWidth="52"
-                    Margin="0,4,0,0"
-                    Padding="6,0"
-                    HorizontalAlignment="Center"
-                    Background="#A3142234"
-                    BorderBrush="#304B627A"
-                    BorderThickness="1"
-                    CornerRadius="8">
-                <StackPanel Orientation="Horizontal"
-                            VerticalAlignment="Center">
-                    <TextBlock Text="周"
-                               Foreground="{StaticResource TextMutedBrush}"
-                               FontSize="10"
-                               Margin="0,0,4,0"
-                               VerticalAlignment="Center" />
-                    <TextBlock Text="{Binding CurrentAccountUsage.WeeklyText, TargetNullValue=--}"
-                               FontSize="10"
-                               FontWeight="SemiBold"
-                               VerticalAlignment="Center">
-                        <TextBlock.Style>
-                            <Style TargetType="{x:Type TextBlock}">
-                                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding CurrentAccountUsage.IsWeeklyUsageWarning}" Value="True">
-                                        <Setter Property="Foreground" Value="{StaticResource WarningBrush}" />
-                                    </DataTrigger>
-                                    <DataTrigger Binding="{Binding CurrentAccountUsage.IsWeeklyUsageCritical}" Value="True">
-                                        <Setter Property="Foreground" Value="{StaticResource DangerBrush}" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
-                </StackPanel>
-            </Border>
+            <TextBlock Text="剩余"
+                       Foreground="{StaticResource TextMutedBrush}"
+                       FontSize="9"
+                       HorizontalAlignment="Center"
+                       Margin="0,-2,0,0" />
         </StackPanel>
     </Grid>
 </Window>

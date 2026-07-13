@@ -8,17 +8,17 @@ namespace CodexAppSwitcher.Models;
 public sealed class UsageSnapshot
 {
     /// <summary>
-    /// 五小时额度剩余百分比。
+    /// 短期额度剩余百分比；服务端未提供窗口时为空。
     /// </summary>
-    public int FiveHourRemainingPercent { get; set; }
+    public int? FiveHourRemainingPercent { get; set; }
 
     /// <summary>
-    /// 每周额度剩余百分比。
+    /// 每周额度剩余百分比；服务端未提供窗口时为空。
     /// </summary>
-    public int WeeklyRemainingPercent { get; set; }
+    public int? WeeklyRemainingPercent { get; set; }
 
     /// <summary>
-    /// 五小时额度重置时间文本。
+    /// 短期额度重置时间文本。
     /// </summary>
     public string FiveHourResetText { get; set; } = "未知";
 

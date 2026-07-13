@@ -317,20 +317,21 @@ public sealed class UsageStatusService
         try
         {
             var root = JObject.Parse(json);
-            var primaryWindow = root.SelectToken("rate_limit.primary_window");
-            var secondaryWindow = root.SelectToken("rate_limit.secondary_window");
-            if (primaryWindow is null || secondaryWindow is null)
+            var primaryWindow = root.SelectToken("rate_limit.primary_window") as JObject;
+            var secondaryWindow = root.SelectToken("rate_limit.secondary_window") as JObject;
+            var windowPair = ClassifyRateLimitWindows(primaryWindow, secondaryWindow);
+            if (windowPair.ShortWindow is null && windowPair.WeeklyWindow is null)
             {
-                return null;
+                return HasUsageHistory(root) ? CreateSnapshotWithoutRateLimits(root) : null;
             }
 
             return new UsageSnapshot
             {
-                FiveHourRemainingPercent = UsedPercentToRemaining(primaryWindow.Value<int?>("used_percent")),
-                WeeklyRemainingPercent = UsedPercentToRemaining(secondaryWindow.Value<int?>("used_percent")),
-                FiveHourResetText = FormatUnixResetTime(primaryWindow.Value<long?>("reset_at")),
-                WeeklyResetText = FormatUnixResetTime(secondaryWindow.Value<long?>("reset_at")),
-                ExtraQuotaText = root.SelectToken("credits.balance")?.Value<string>() ?? "未知",
+                FiveHourRemainingPercent = UsedPercentToRemaining(windowPair.ShortWindow?.Value<int?>("used_percent")),
+                WeeklyRemainingPercent = UsedPercentToRemaining(windowPair.WeeklyWindow?.Value<int?>("used_percent")),
+                FiveHourResetText = FormatWindowResetTime(windowPair.ShortWindow),
+                WeeklyResetText = FormatWindowResetTime(windowPair.WeeklyWindow),
+                ExtraQuotaText = ExtractApiQuotaText(root),
                 RefreshedAt = DateTimeOffset.Now
             };
         }
@@ -338,6 +339,60 @@ public sealed class UsageStatusService
         {
             return null;
         }
+    }
+
+    private static UsageSnapshot CreateSnapshotWithoutRateLimits(JObject root) =>
+        new()
+        {
+            FiveHourRemainingPercent = null,
+            WeeklyRemainingPercent = null,
+            FiveHourResetText = "未提供",
+            WeeklyResetText = "未提供",
+            ExtraQuotaText = ExtractApiQuotaText(root),
+            RefreshedAt = DateTimeOffset.Now
+        };
+
+    private static bool HasUsageHistory(JObject root) =>
+        root.SelectToken("data") is JArray data
+        && data.Any(item => item.SelectToken("product_surface_usage_values") is JObject);
+
+    private static string ExtractApiQuotaText(JObject root)
+    {
+        var creditsBalance = root.SelectToken("credits.balance")?.Value<string>();
+        if (!string.IsNullOrWhiteSpace(creditsBalance))
+        {
+            return creditsBalance;
+        }
+
+        var resetCredits = root.SelectToken("rate_limit_reset_credits.available_count")?.Value<int?>();
+        return resetCredits.HasValue ? resetCredits.Value.ToString() : "未提供";
+    }
+
+    private static RateLimitWindowPair ClassifyRateLimitWindows(JObject? primaryWindow, JObject? secondaryWindow)
+    {
+        JObject? shortWindow = null;
+        JObject? weeklyWindow = null;
+        foreach (var window in new[] { primaryWindow, secondaryWindow }.Where(window => window is not null).Cast<JObject>())
+        {
+            var windowSeconds = window.Value<int?>("limit_window_seconds");
+            if (windowSeconds >= 604800)
+            {
+                weeklyWindow ??= window;
+                continue;
+            }
+
+            if (windowSeconds.HasValue)
+            {
+                shortWindow ??= window;
+            }
+        }
+
+        if (shortWindow is null && weeklyWindow is null)
+        {
+            return new RateLimitWindowPair(primaryWindow, secondaryWindow);
+        }
+
+        return new RateLimitWindowPair(shortWindow, weeklyWindow);
     }
 
     private static async Task<string> TryReadChatGptCodexUsageText(
@@ -433,8 +488,11 @@ public sealed class UsageStatusService
         };
     }
 
-    private static int UsedPercentToRemaining(int? usedPercent) =>
-        Math.Clamp(100 - (usedPercent ?? 0), 0, 100);
+    private static int? UsedPercentToRemaining(int? usedPercent) =>
+        usedPercent.HasValue ? Math.Clamp(100 - usedPercent.Value, 0, 100) : null;
+
+    private static string FormatWindowResetTime(JObject? window) =>
+        window is null ? "未提供" : FormatUnixResetTime(window.Value<long?>("reset_at"));
 
     private static string FormatUnixResetTime(long? resetAt)
     {
@@ -486,6 +544,8 @@ public sealed class UsageStatusService
     }
 
     private sealed record UsageApiResponse(string Body, int StatusCode, string Source);
+
+    private sealed record RateLimitWindowPair(JObject? ShortWindow, JObject? WeeklyWindow);
 }
 
 /// <summary>
